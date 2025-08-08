@@ -1,45 +1,87 @@
-name: Build with Inputs Table
+name: Deploy / Build
+
+# Динамический заголовок РУНА (видно на главной странице Actions и в поиске)
+run-name: "Run: env=${{ github.event.inputs.environment || 'n/a' }}, version=${{ github.event.inputs.version || 'n/a' }}"
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment'
+        description: Target environment
         required: true
         default: dev
         type: choice
-        options:
-          - dev
-          - prod
+        options: [dev, prod]
       version:
-        description: 'App version'
-        required: true
-        default: "1.0.0"
+        description: App version
+        required: false
+        default: ""
       deploy:
-        description: 'Deploy after build?'
+        description: Deploy after build?
         required: true
-        default: "yes"
         type: choice
-        options:
-          - yes
-          - no
+        default: no
+        options: [yes, no]
 
 jobs:
   build:
+    # Динамическое имя job’а — тоже видно в UI
+    name: "Build & Report (env=${{ github.event.inputs.environment || 'n/a' }})"
     runs-on: ubuntu-latest
-    name: Deploy - ${{ github.event.inputs.environment }}
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show Inputs Table in Summary
+      # 1) Annotation: бросаем заметное уведомление с inputs
+      - name: Emit inputs as annotation
         run: |
+          echo "::notice title=Workflow Inputs::environment=${{ github.event.inputs.environment }}, version=${{ github.event.inputs.version }}, deploy=${{ github.event.inputs.deploy }}"
+
+      # 2) Summary: одна общая таблица параметров запуска
+      - name: Write Inputs & Context to Summary
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
           {
-            echo "## 🚀 Build Parameters"
+            echo "## 📋 Run Summary"
             echo ""
-            echo "| Parameter     | Value |"
-            echo "|---------------|-------|"
-            echo "| environment   | ${{ github.event.inputs.environment }} |"
-            echo "| version       | ${{ github.event.inputs.version }} |"
-            echo "| deploy        | ${{ github.event.inputs.deploy }} |"
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| Environment | ${{ github.event.inputs.environment }} |"
+            echo "| Version | ${{ github.event.inputs.version }} |"
+            echo "| Deploy | ${{ github.event.inputs.deploy }} |"
+            echo "| Branch | ${{ github.ref_name }} |"
+            echo "| Commit | ${SHORT_SHA} |"
+            echo "| Actor | ${{ github.actor }} |"
+            echo "| Event | ${{ github.event_name }} |"
+            echo "| Run # | ${{ github.run_number }} |"
+            echo ""
+            echo "<details><summary>All inputs (JSON)</summary>"
+            echo ""
+            echo '```json'
+            echo '${{ toJson(github.event.inputs) }}'
+            echo '```'
+            echo "</details>"
           } >> $GITHUB_STEP_SUMMARY
+
+      # 3) Artifact: сохраняем inputs в файл и публикуем
+      - name: Create inputs.json
+        run: |
+          cat > inputs.json <<'JSON'
+          ${{ toJson(github.event.inputs) }}
+          JSON
+
+      - name: Upload inputs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-inputs
+          path: inputs.json
+
+      # (демо) Условный шаг по input
+      - name: Deploy step (only if deploy=yes)
+        if: ${{ github.event.inputs.deploy == 'yes' }}
+        run: echo "Deploying to ${{ github.event.inputs.environment }}..."
+
+      - name: Skip deploy (deploy=no)
+        if: ${{ github.event.inputs.deploy != 'yes' }}
+        run: echo "Skipping deploy."
