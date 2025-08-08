@@ -1,4 +1,4 @@
-name: Build with Inputs Table (${{ github.event.inputs.environment }})
+name: Build with Inputs Table
 
 on:
   workflow_dispatch:
@@ -27,6 +27,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: Deploy - ${{ github.event.inputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
