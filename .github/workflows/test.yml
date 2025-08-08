@@ -1,4 +1,4 @@
-name: Build with Inputs Table
+name: Build with Inputs Table (${{ github.event.inputs.environment }})
 
 on:
   workflow_dispatch:
