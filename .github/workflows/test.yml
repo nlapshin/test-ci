@@ -1,0 +1,44 @@
+name: Build with Inputs Table
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+      version:
+        description: 'App version'
+        required: true
+        default: "1.0.0"
+      deploy:
+        description: 'Deploy after build?'
+        required: true
+        default: "yes"
+        type: choice
+        options:
+          - yes
+          - no
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show Inputs Table in Summary
+        run: |
+          {
+            echo "## 🚀 Build Parameters"
+            echo ""
+            echo "| Parameter     | Value |"
+            echo "|---------------|-------|"
+            echo "| environment   | ${{ github.event.inputs.environment }} |"
+            echo "| version       | ${{ github.event.inputs.version }} |"
+            echo "| deploy        | ${{ github.event.inputs.deploy }} |"
+          } >> $GITHUB_STEP_SUMMARY
